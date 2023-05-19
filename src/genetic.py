@@ -1,14 +1,16 @@
 import random
 import logging
+from music21 import *
 from functools import reduce
 from fitness import dummy
+from musicio import get_music_lists, write_musicxml
 
 M = 100
 N = 10
 
 LOW_PITCH = 1
-HIGH_PITCH = 14
-
+HIGH_PITCH = 48
+ALPHA = 4000
 
 # TODO: encode chord
 
@@ -16,23 +18,36 @@ class GeneticRunner(object):
     def __init__(self, pcross: float, pmutation: float, music_len: int) -> None:
         self.pcross = 1
         self.pmutation = 0.01
-        self.music_len = 5
-        self.population_size = 2
+        self.music_len = 32
+        self.population_size = 10
         self.rosseta_prob = []
-        self.now_population = [[1, 2, 7, 8, 9], [5, 6, 2, 3, 4]]
+        # self
+        self.now_population = get_music_lists()
         self.next_population = []
+        self.best_id = -1
         self.fitness = dummy # func, todo
         # the following variables are intermidiate variables in member functions.
         # we define them here to reduce the time for malloc.
         self.crossovered = [False, False]
         self.chosen_music = []
 
-    def read_music(self) -> None:
-        pass
+    def read_music(self) -> list:
+        return get_music_lists()
         # self.now_population = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]
 
     def output_music(self) -> None:
-        print(0)
+        # logging.info(f"choose idx {self.best_id} music {self.now_population[self.best_id]}")
+        # step 2. output
+        print("output")
+        print(sum(self.now_population[self.best_id]))
+        write_musicxml(self.now_population[self.best_id])
+
+    def find_max_fitness(self) -> int:
+        population_fitness = list(map(self.fitness, self.now_population))
+        max_fitness = max(population_fitness)
+        self.best_id = population_fitness.index(max_fitness)
+        logging.info(f"choose idx {self.best_id} music {self.now_population[self.best_id]} max fitness {max_fitness}")
+        return max_fitness
 
     def rossetta(self) -> None:
         '''
@@ -40,7 +55,10 @@ class GeneticRunner(object):
         '''
         self.chosen_music.clear()
         # logging.info(rosseta_prob)
-        rosseta_prob = list(map(lambda x: self.fitness(x) / reduce(lambda x, y: self.fitness(x) + self.fitness(y), self.now_population), self.now_population))
+        # print(self.now_population)
+        fitness_sum = sum(map(lambda x: self.fitness(x), self.now_population))
+        # print(fitness_sum)
+        rosseta_prob = list(map(lambda x: self.fitness(x) / fitness_sum, self.now_population))
         logging.info(rosseta_prob)
         # Maybe TODO: more pythonic
         for _ in range(self.population_size):
@@ -114,13 +132,14 @@ class GeneticRunner(object):
                 self.mutation(music)
         logging.info("next generation: {}".format(self.next_population))
         self.now_population = self.next_population[:]
-        return False
+        return self.find_max_fitness() >= ALPHA
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     runner = GeneticRunner(1, 0.01, 5)
     runner.read_music()
-    for _ in range(M):
+    for i in range(M):
+        logging.warning(f"epoch {i}")
         if runner.step():
             break
     runner.output_music()

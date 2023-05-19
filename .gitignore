@@ -1,3 +1,7 @@
+!*.xml
 .DS_Store
 music/
 tests/
+
+__pycache__/
+.vscode/
